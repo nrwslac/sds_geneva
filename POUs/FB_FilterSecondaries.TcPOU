@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4022.18">
+  <POU Name="FB_FilterSecondaries" Id="{ff01b56a-17ce-43f7-9e9f-a72caca7f8b0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_FilterSecondaries
+VAR_INPUT
+    bExecute : BOOL;
+    sMotorProduct : STRING;
+    nAddrSize : BYTE;
+    aAddr     : POINTER TO UINT;
+END_VAR
+VAR_OUTPUT
+    bBusy : BOOL := FALSE;  
+    nNumberFound : BYTE := 0;
+END_VAR
+VAR_IN_OUT
+END_VAR
+VAR
+    fbGetSecondaryInfo : FB_EcGetSlaveIdentity;
+
+    eState : E_State := E_State.Init;
+    nCurrIndex : BYTE := 0;
+    nLoopVar : BYTE := 0;
+    sCurrStr : STRING;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE eState OF
+E_State.Init:
+;
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

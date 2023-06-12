@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4022.18">
+  <POU Name="FB_Read70x1CoeData" Id="{3d4514dc-8223-47db-9879-899720aca4f2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Read70x1CoeData
+VAR_INPUT
+   userNetId             : T_AmsNetId := ''; // Have to be entered
+END_VAR
+VAR_OUTPUT
+    aCoeData : ARRAY[0..9] OF DUT_70x1CoeData;
+    userSlaveAddr         : POINTER TO UINT;
+END_VAR
+VAR_IN_OUT
+END_VAR
+VAR
+   fb_coe_read           : FB_EcCoESdoRead;  // Function Block for reading from CoE
+   fb_get_secondaries   : FB_FindSecondaryAddr;  // Function Block for reading Secondary Addresses
+   fb_filter_secondaries : FB_FilterSecondaries;
+
+   bInit               : BOOL := TRUE;  // Kicks off Secondary Address read.
+   aCoeIndex           : ARRAY[0..4] OF BYTE := [1, 2, 3, 6, 5];
+   aCoeAddr            : ARRAY[0..4] OF WORD :=   [16#8010, 16#8010, 16#8010, 16#8010, 16#8012];  
+   //userSlaveAddr         : POINTER TO UINT;     // Secondary Address
+   startRead             : BOOL := FALSE;    // Sign for start reading CoE
+   eState   			: E_State := E_State.Init; 
+   int16Buffer           : INT;              // Buffer for reading
+   nReadIndex           : BYTE :=  0;
+   nSlaveIndex          : BYTE := 0;
+   pDstBuf              :   POINTER TO WORD;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE eState OF
+E_State.Init:
+   fb_get_secondaries(userNetId:=userNetId, bExecute:= bInit);
+   bInit := FALSE;
+   IF NOT fb_get_secondaries.bBusy THEN
+        userSlaveAddr := ADR(fb_get_secondaries.userSlaveAddr);    
+   END_IF
+   IF startRead AND NOT fb_get_secondaries.bBusy THEN      
+        eState := E_State.PreRead;
+   END_IF
+E_State.PreRead:
+    fb_filter_secondaries(bExecute:=TRUE, aAddr:= userSlaveAddr);
+     
+      fb_coe_read(bExecute := FALSE);// Prepare CoE-Access: Read an object/ sub index
+      eState := E_State.Read;// Next state for reading
+      startRead := FALSE;
+E_State.Read:
+        
+     CASE nReadIndex OF
+       0:
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nMaxCurrent);  
+       1:
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nReducedCurrent); 
+       2:
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nNominalVoltage);  
+       3:
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nMotorFullSteps);
+       4:
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nSpeedRange);
+     END_CASE
+   // Read entry
+   fb_coe_read(
+   sNetId:= userNetId, 
+   nSlaveAddr:= userSlaveAddr[nSlaveIndex], 
+   nSubIndex:= aCoeIndex[nReadIndex], 
+   nIndex:= aCoeAddr[nReadIndex],
+   pDstBuf:= pDstBuf, 
+   cbBufLen:= 2, 
+   bExecute:= TRUE, 
+   tTimeout:= T#1S
+   );
+   eState := E_State.Idle; // Next state
+E_State.Idle:
+   fb_coe_read();        // Execute CoE read until done
+   IF fb_coe_read.bError THEN
+      eState := E_State.Error;     // Error case
+   ELSE
+      IF NOT fb_coe_read.bBusy THEN
+             eState := E_State.Init;
+             IF nReadIndex < 4 THEN
+                startRead := TRUE;
+                nReadIndex := nReadIndex + 1;
+             ELSIF nReadIndex = 4 AND nSlaveIndex < 1 THEN
+                nReadIndex := 0;
+                nSlaveIndex := nSlaveIndex + 1;
+                startRead := TRUE;
+             ELSE
+                nReadIndex := 0;
+                nSlaveIndex := 0;
+             END_IF
+         END_IF
+   END_IF
+E_State.Error:
+   ;                     // Access error
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

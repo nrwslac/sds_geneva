@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4022.18">
+  <POU Name="MAIN" Id="{fb99dda6-98b1-45c2-b37f-6320102b1046}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	{attribute 'TcLinkTo' := '.bLimitForwardEnable:=TIIB[Term 2 (EL7031)]^STM Status^Status^Digital input 2;
+                              .bLimitBackwardEnable:=TIIB[Term 2 (EL7031)]^STM Status^Status^Digital input 1'}
+	 M1 : DUT_MotionStage := (nEnableMode:=ENUM_StageEnableMode.ALWAYS, bPowerSelf:=TRUE);
+    fbMotionStageM1 : FB_MotionStage;
+
+    fbCoeReader : FB_Read70x1CoEData;
+
+
+
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[fbMotionStageM1(stMotionStage:=M1);
+
+fbCoeReader(UserNetId:='172.21.148.67.2.1');]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4022.18">
+  <POU Name="FB_AxisRead70x1" Id="{bb16c7aa-67ec-4636-b112-89aefc2969c9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_AxisRead70x1
+VAR_INPUT
+	bExecute: BOOL;
+	bReset: BOOL;
+	stDriveRef: ST_DriveRef;
+END_VAR
+VAR_IN_OUT
+	stConfig: ST_AxisParams;
+	Axis: AXIS_REF;
+END_VAR
+VAR_OUTPUT
+
+END_VAR
+VAR
+    fbReadMaxCurrent: FB_CoERead_ByDriveRef;
+    nIndMaxCurrent: WORD;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// Clears errors and allows a new read
+IF bReset THEN
+	bExecute := FALSE;
+	bReset := FALSE;
+END_IF
+
+nIndMaxCurrent := 16#8010;
+
+fbReadMaxCurrent(bExecute:=bExecute,
+	stDriveRef:=stDriveRef,
+	nindex:=nIndMaxCurrent,
+	nSubIndex:=16#01,
+	pDstBuf:=ADR(stConfig.max_current),
+	cbBufLen:=SIZEOF(stConfig.max_current));]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
