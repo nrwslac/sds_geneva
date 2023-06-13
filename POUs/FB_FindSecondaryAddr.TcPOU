@@ -7,40 +7,40 @@ VAR_INPUT
     bExecute                : BOOL;
 END_VAR
 VAR_OUTPUT
-    userSlaveAddr         : ARRAY[0..GVL_CPU.EC_MAX_SECONDARY] OF UINT;
-    nSlaves           : UINT := 0;
+    userSlaveAddr         : ARRAY[0..GVL_COE.EC_MAX_SECONDARY] OF UINT;
+    nSecondaries           : UINT := 0;
     bBusy              : BOOL := FALSE;
 END_VAR
 VAR
     fbGetSecondary : FB_EcGetAllSlaveAddr;
-    eState   			: E_State := E_State.Init;
+    eState   			: E_CoeState := E_CoeState.Init;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[CASE eState OF
-E_State.Init:
+E_CoeState.Init:
     IF bExecute THEN
         bBusy := TRUE;
-        eState := E_State.Read;
+        eState := E_CoeState.Read;
         bExecute := FALSE;
     END_IF
-E_State.Read:
+E_CoeState.Read:
     fbGetSecondary(
         sNetId:=userNetId, 
         pAddrBuf:=ADR(userSlaveAddr),
         cbBufLen:=SIZEOF(userSlaveAddr),
         bExecute := TRUE,
     );
-    eState := E_State.Idle;
+    eState := E_CoeState.Idle;
 
-E_State.Idle:
+E_CoeState.Idle:
     IF fbGetSecondary.bError THEN
-        eState := E_State.Error;
+        eState := E_CoeState.Error;
     ELSE
         IF NOT fbGetSecondary.bBusy THEN
-            eState := E_State.Init;
+            eState := E_CoeState.Init;
             bBusy := FALSE;
-            nSlaves := fbGetSecondary.nSlaves;
+            nSecondaries := fbGetSecondary.nSlaves;
         ELSE
             fbGetSecondary(
                 sNetId:=userNetId, 
@@ -49,7 +49,7 @@ E_State.Idle:
                 bExecute := FALSE );      
         END_IF
     END_IF
-E_State.Error:
+E_CoeState.Error:
 ;  
 END_CASE
 ]]></ST>

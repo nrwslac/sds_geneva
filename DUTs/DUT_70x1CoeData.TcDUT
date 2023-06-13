@@ -6,6 +6,12 @@ STRUCT
      (* Hardware *)
     //Readbacks
     {attribute 'pytmc' := '
+     pv: TRM:NAME
+     io: i
+     field: DESC beck terminal type
+    '}
+    sDeviceName : STRING(35);
+    {attribute 'pytmc' := '
      pv: MAX:CUR
      io: i
      field: DESC Max Current
@@ -35,7 +41,6 @@ STRUCT
      field: DESC Speed Range
     '}
     nSpeedRange: WORD;
-    sDeviceName : STRING(35);
 END_STRUCT
 END_TYPE
 ]]></Declaration>

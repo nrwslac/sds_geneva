@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4022.18">
-  <DUT Name="E_State" Id="{152610e0-cdbf-4e25-93df-dac94cd9b39b}">
+  <DUT Name="E_CoeState" Id="{152610e0-cdbf-4e25-93df-dac94cd9b39b}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
-TYPE E_State :
+TYPE E_CoeState :
 (
 	Init := 0,
 	Read,

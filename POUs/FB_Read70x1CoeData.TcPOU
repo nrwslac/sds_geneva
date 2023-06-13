@@ -12,71 +12,73 @@ END_VAR
 VAR_IN_OUT
 END_VAR
 VAR
-   fb_coe_read           : FB_EcCoESdoRead;  // Function Block for reading from CoE
-   fb_get_secondaries   : FB_FindSecondaryAddr;  // Function Block for reading Secondary Addresses
-   fb_filter_secondaries : FB_FilterSecondaries;
+   fbCoeRead           : FB_EcCoESdoRead;  // Function Block for reading from CoE
+   fbGetSecondaries   : FB_FindSecondaryAddr;  // Function Block for reading Secondary Addresses
 
-   nNumCoeParam           : BYTE := 6;
+   nNumCoeParam           : BYTE := GVL_COE.NUM_70x1_COE_PARAM;
    bInit               : BOOL := TRUE;  // Kicks off Secondary Address read.
-   aCoeIndex           : ARRAY[0..5] OF BYTE := [1, 2, 3, 6, 5, 0];
-   aCoeAddr            : ARRAY[0..5] OF WORD :=   [16#8010, 16#8010, 16#8010, 16#8010, 16#8012, 16#1008];
-   //userSlaveAddr         : POINTER TO UINT;     // Secondary Address
-   startRead             : BOOL := FALSE;    // Sign for start reading CoE
-   eState   			: E_State := E_State.Init;
-   int16Buffer           : INT;              // Buffer for reading
+   
+   aCoeIndex           : ARRAY[0..GVL_COE.NUM_70x1_COE_PARAM - 1] OF BYTE := [0, 1, 2, 3, 6, 5];
+   aCoeAddr            : ARRAY[0..GVL_COE.NUM_70x1_COE_PARAM - 1] OF WORD :=   [16#1008, 16#8010, 16#8010, 16#8010, 16#8010, 16#8012];
+   aTerminalType       : ARRAY[0..GVL_COE.NUM_SUP_70x1] OF STRING := ['EL7031', 'EL7041', 'EL7041-1000', 'EL7047'];
+
+   bStartRead             : BOOL := FALSE;    // Sign for start reading CoE
+   eState   			: E_CoeState := E_CoeState.Init;
    nReadIndex           : BYTE :=  0;
-   nSlaveIndex          : BYTE := 0;
-   nSlaves              : UINT := 0;
+   nSecondaryIndex          : BYTE := 0;
+   nSecondaries              : UINT := 0;
    pDstBuf              :   POINTER TO WORD;
    cbBufLen   : UDINT;
+   
+    bValidTerm : BOOL;
+    nForLoop : INT;
+
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[CASE eState OF
-E_State.Init:
-   fb_get_secondaries(userNetId:=userNetId, bExecute:= bInit);
+E_CoeState.Init:
+   fbGetSecondaries(userNetId:=userNetId, bExecute:= bInit);
    bInit := FALSE;
 //Needs Error Checking
-   IF NOT fb_get_secondaries.bBusy THEN
-        userSlaveAddr := ADR(fb_get_secondaries.userSlaveAddr);
-        nSlaves := fb_get_secondaries.nSlaves;
+   IF NOT fbGetSecondaries.bBusy THEN
+        userSlaveAddr := ADR(fbGetSecondaries.userSlaveAddr);
+        nSecondaries := fbGetSecondaries.nSecondaries;
    END_IF
-   IF startRead AND NOT fb_get_secondaries.bBusy THEN
-        eState := E_State.PreRead;
+   IF bStartRead AND NOT fbGetSecondaries.bBusy THEN
+        eState := E_CoeState.PreRead;
    END_IF
-E_State.PreRead:
-      //fb_filter_secondaries(userNetId:= userNetId, bExecute:=TRUE, aAddr:= userSlaveAddr, bExecute:= TRUE, nAddrSize:= nSlaves);
-      //IF NOT fb_filter_secondaries.bBusy THEN
-      eState := E_State.Read;// Next state for reading
-      fb_coe_read(bExecute := FALSE);// Prepare CoE-Access: Read an object/ sub index
-      startRead := FALSE;
-      //END_IF
+E_CoeState.PreRead:
+      eState := E_CoeState.Read;// Next state for reading
+      fbCoeRead(bExecute := FALSE);// Prepare CoE-Access: Read an object/ sub index
+      bStartRead := FALSE;
 
-E_State.Read:
+E_CoeState.Read:
 
      CASE nReadIndex OF
        0:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nMaxCurrent);
+         pDstBuf := ADR(aCoeData[nSecondaryIndex].sDeviceName);
        1:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nReducedCurrent);
+         pDstBuf := ADR(aCoeData[nSecondaryIndex].nMaxCurrent);
        2:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nNominalVoltage);
+         pDstBuf := ADR(aCoeData[nSecondaryIndex].nReducedCurrent);
        3:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nMotorFullSteps);
+         pDstBuf := ADR(aCoeData[nSecondaryIndex].nNominalVoltage);
        4:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nSpeedRange);
+         pDstBuf := ADR(aCoeData[nSecondaryIndex].nMotorFullSteps);
        5:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].sDeviceName);
+         pDstBuf := ADR(aCoeData[nSecondaryIndex].nSpeedRange);
+
      END_CASE
-    IF nReadIndex = 5 THEN
-    cbBufLen := 80;
+    IF nReadIndex = 0 THEN
+    cbBufLen := GVL_COE.MAX_STRING_SIZE;
     ELSE
     cbBufLen := SIZEOF(pDstBuf^);
     END_IF
    // Read entry
-   fb_coe_read(
+   fbCoeRead(
    sNetId:= userNetId,
-   nSlaveAddr:= userSlaveAddr[nSlaveIndex],
+   nSlaveAddr:= userSlaveAddr[nSecondaryIndex],
    nSubIndex:= aCoeIndex[nReadIndex],
    nIndex:= aCoeAddr[nReadIndex],
    pDstBuf:= pDstBuf,
@@ -84,42 +86,59 @@ E_State.Read:
    bExecute:= TRUE,
    tTimeout:= T#1S
    );
-   eState := E_State.Idle; // Next state
-E_State.Idle:
-   fb_coe_read();        // Execute CoE read until done
-   IF fb_coe_read.bError THEN
-      eState := E_State.Error;     // Error case
+   eState := E_CoeState.Idle; // Next state
+E_CoeState.Idle:
+   fbCoeRead();        // Execute CoE read until done
+   IF fbCoeRead.bError THEN
+      eState := E_CoeState.Error;     // Error case
    ELSE
-      IF NOT fb_coe_read.bBusy THEN
-             eState := E_State.Init;
-             IF nReadIndex < nNumCoeParam - 1 THEN
-                startRead := TRUE;
+      IF NOT fbCoeRead.bBusy THEN
+             eState := E_CoeState.Init;
+             IF nReadIndex = 0 THEN
+                // Make sure its an EL70x1
+                bValidTerm := FALSE;
+                FOR nForLoop := 0 TO GVL_COE.NUM_SUP_70x1 - 1 DO
+                    IF aCoeData[nSecondaryIndex].sDeviceName = aTerminalType[nForLoop] THEN
+                        bValidTerm := TRUE;
+                        EXIT;
+                    END_IF
+                END_FOR
+                IF bValidTerm THEN
+                    bStartRead := TRUE;
+                    nReadIndex := nReadIndex + 1;
+                ELSIF nSecondaryIndex < nSecondaries - 1 THEN
+                    nSecondaryIndex := nSecondaryIndex + 1;
+                    nReadIndex := 0;
+                    estate := E_CoeState.Init;
+                    bStartRead := TRUE;      
+                END_IF
+             
+             ELSIF nReadIndex < nNumCoeParam - 1 THEN
+                bStartRead := TRUE;
                 nReadIndex := nReadIndex + 1;
-             ELSIF nReadIndex = nNumCoeParam - 1 AND nSlaveIndex < nSlaves - 1 THEN
+             ELSIF nReadIndex = nNumCoeParam - 1 AND nSecondaryIndex < nSecondaries - 1 THEN
                 nReadIndex := 0;
-                nSlaveIndex := nSlaveIndex + 1;
-                startRead := TRUE;
+                nSecondaryIndex := nSecondaryIndex + 1;
+                bStartRead := TRUE;
              ELSE
-                //nReadIndex := 0;
-                //nSlaveIndex := 0;
+                ;
              END_IF
          END_IF
    END_IF
-E_State.Error:
-    IF fb_coe_read.nErrId = 13
-     or fb_coe_read.nErrId = 1797
-        or fb_coe_read.nErrId = 1795 THEN
-        //ERR_PORTNOTCONNECTED wasnt supported.
-        //ADSERR_DEVICE_INVALIDSIZE, not an el 70x1
-        //ADSERR_DEVICE_INVALIDOFFSET
-        IF nSlaveIndex < nSlaves - 1 THEN
-            nSlaveIndex := nSlaveIndex + 1;
-            estate := E_State.Init;
-            startRead := TRUE;
+E_CoeState.Error:
+    IF fbCoeRead.nErrId = 13
+        //ERR_PORTNOTCONNECTED wasnt supported, non CoE Terminal.
+     OR fbCoeRead.nErrId = 1797
+        //ADSERR_DEVICE_INVALIDOFFSET, not an EL70x1
+     OR fbCoeRead.nErrId = 1795 THEN
+        //ADSERR_DEVICE_INVALIDSIZE, not an EL70x1
+        IF nSecondaryIndex < nSecondaries - 1 THEN
+            nSecondaryIndex := nSecondaryIndex + 1;
+            nReadIndex := 0;
+            estate := E_CoeState.Init;
+            bStartRead := TRUE;
         END_IF
     END_IF
-
-                  // Access error
 END_CASE]]></ST>
     </Implementation>
   </POU>
