@@ -3,16 +3,20 @@
   <POU Name="MAIN" Id="{fb99dda6-98b1-45c2-b37f-6320102b1046}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-	{attribute 'TcLinkTo' := '.bLimitForwardEnable:=TIIB[Term 2 (EL7031)]^STM Status^Status^Digital input 2;
+    {attribute 'TcLinkTo' := '.bLimitForwardEnable:=TIIB[Term 2 (EL7031)]^STM Status^Status^Digital input 2;
                               .bLimitBackwardEnable:=TIIB[Term 2 (EL7031)]^STM Status^Status^Digital input 1'}
-	 M1 : DUT_MotionStage := (nEnableMode:=ENUM_StageEnableMode.ALWAYS, bPowerSelf:=TRUE);
+     M1 : DUT_MotionStage := (nEnableMode:=ENUM_StageEnableMode.ALWAYS, bPowerSelf:=TRUE);
     fbMotionStageM1 : FB_MotionStage;
 
+
+    {attribute 'pytmc' := '
+        pv: SDS:TEST
+    '}
     fbCoeReader : FB_Read70x1CoEData;
 
 
 
-	
+
 END_VAR
 ]]></Declaration>
     <Implementation>

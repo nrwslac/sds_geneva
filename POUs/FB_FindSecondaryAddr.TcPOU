@@ -26,7 +26,7 @@ E_CoeState.Init:
     END_IF
 E_CoeState.Read:
     fbGetSecondary(
-        sNetId:=userNetId, 
+        sNetId:=userNetId,
         pAddrBuf:=ADR(userSlaveAddr),
         cbBufLen:=SIZEOF(userSlaveAddr),
         bExecute := TRUE,
@@ -43,14 +43,14 @@ E_CoeState.Idle:
             nSecondaries := fbGetSecondary.nSlaves;
         ELSE
             fbGetSecondary(
-                sNetId:=userNetId, 
+                sNetId:=userNetId,
                 pAddrBuf:=ADR(userSlaveAddr),
                 cbBufLen:=SIZEOF(userSlaveAddr),
-                bExecute := FALSE );      
+                bExecute := FALSE );
         END_IF
     END_IF
 E_CoeState.Error:
-;  
+;
 END_CASE
 ]]></ST>
     </Implementation>

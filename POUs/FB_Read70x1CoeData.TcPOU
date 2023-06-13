@@ -6,6 +6,9 @@ VAR_INPUT
    userNetId             : T_AmsNetId := ''; // Have to be entered
 END_VAR
 VAR_OUTPUT
+    {attribute 'pytmc' := '
+        pv:
+    '}
     aCoeData : ARRAY[0..9] OF DUT_70x1CoeData;
     userSlaveAddr         : POINTER TO UINT;
 END_VAR
@@ -17,11 +20,14 @@ VAR
 
    nNumCoeParam           : BYTE := GVL_COE.NUM_70x1_COE_PARAM;
    bInit               : BOOL := TRUE;  // Kicks off Secondary Address read.
-   
+   // NEED TO MANUALLY UPDATE GVL_COE SIZES
    aCoeIndex           : ARRAY[0..GVL_COE.NUM_70x1_COE_PARAM - 1] OF BYTE := [0, 1, 2, 3, 6, 5];
    aCoeAddr            : ARRAY[0..GVL_COE.NUM_70x1_COE_PARAM - 1] OF WORD :=   [16#1008, 16#8010, 16#8010, 16#8010, 16#8010, 16#8012];
    aTerminalType       : ARRAY[0..GVL_COE.NUM_SUP_70x1] OF STRING := ['EL7031', 'EL7041', 'EL7041-1000', 'EL7047'];
-
+   {attribute 'pytmc' := '
+        pv: READ
+        io: io
+   '}
    bStartRead             : BOOL := FALSE;    // Sign for start reading CoE
    eState   			: E_CoeState := E_CoeState.Init;
    nReadIndex           : BYTE :=  0;
@@ -29,7 +35,7 @@ VAR
    nSecondaries              : UINT := 0;
    pDstBuf              :   POINTER TO WORD;
    cbBufLen   : UDINT;
-   
+
     bValidTerm : BOOL;
     nForLoop : INT;
 
@@ -104,15 +110,17 @@ E_CoeState.Idle:
                     END_IF
                 END_FOR
                 IF bValidTerm THEN
+                    // Valid terminal, keep reading
                     bStartRead := TRUE;
                     nReadIndex := nReadIndex + 1;
                 ELSIF nSecondaryIndex < nSecondaries - 1 THEN
+                    // Invalid terminal, looks for next temrinal
                     nSecondaryIndex := nSecondaryIndex + 1;
                     nReadIndex := 0;
                     estate := E_CoeState.Init;
-                    bStartRead := TRUE;      
+                    bStartRead := TRUE;
                 END_IF
-             
+
              ELSIF nReadIndex < nNumCoeParam - 1 THEN
                 bStartRead := TRUE;
                 nReadIndex := nReadIndex + 1;

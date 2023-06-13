@@ -4,11 +4,11 @@
     <Declaration><![CDATA[{attribute 'qualified_only'}
 TYPE E_CoeState :
 (
-	Init := 0,
-	Read,
-	ReadPeriodically,
-	Error,
-	Idle,
+    Init := 0,
+    Read,
+    ReadPeriodically,
+    Error,
+    Idle,
     PreRead,
     Calculate
 );
