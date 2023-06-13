@@ -16,16 +16,19 @@ VAR
    fb_get_secondaries   : FB_FindSecondaryAddr;  // Function Block for reading Secondary Addresses
    fb_filter_secondaries : FB_FilterSecondaries;
 
+   nNumCoeParam           : BYTE := 6;
    bInit               : BOOL := TRUE;  // Kicks off Secondary Address read.
-   aCoeIndex           : ARRAY[0..4] OF BYTE := [1, 2, 3, 6, 5];
-   aCoeAddr            : ARRAY[0..4] OF WORD :=   [16#8010, 16#8010, 16#8010, 16#8010, 16#8012];  
+   aCoeIndex           : ARRAY[0..5] OF BYTE := [1, 2, 3, 6, 5, 0];
+   aCoeAddr            : ARRAY[0..5] OF WORD :=   [16#8010, 16#8010, 16#8010, 16#8010, 16#8012, 16#1008];
    //userSlaveAddr         : POINTER TO UINT;     // Secondary Address
    startRead             : BOOL := FALSE;    // Sign for start reading CoE
-   eState   			: E_State := E_State.Init; 
+   eState   			: E_State := E_State.Init;
    int16Buffer           : INT;              // Buffer for reading
    nReadIndex           : BYTE :=  0;
    nSlaveIndex          : BYTE := 0;
+   nSlaves              : UINT := 0;
    pDstBuf              :   POINTER TO WORD;
+   cbBufLen   : UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -33,41 +36,52 @@ END_VAR
 E_State.Init:
    fb_get_secondaries(userNetId:=userNetId, bExecute:= bInit);
    bInit := FALSE;
+//Needs Error Checking
    IF NOT fb_get_secondaries.bBusy THEN
-        userSlaveAddr := ADR(fb_get_secondaries.userSlaveAddr);    
+        userSlaveAddr := ADR(fb_get_secondaries.userSlaveAddr);
+        nSlaves := fb_get_secondaries.nSlaves;
    END_IF
-   IF startRead AND NOT fb_get_secondaries.bBusy THEN      
+   IF startRead AND NOT fb_get_secondaries.bBusy THEN
         eState := E_State.PreRead;
    END_IF
 E_State.PreRead:
-    fb_filter_secondaries(bExecute:=TRUE, aAddr:= userSlaveAddr);
-     
-      fb_coe_read(bExecute := FALSE);// Prepare CoE-Access: Read an object/ sub index
+      //fb_filter_secondaries(userNetId:= userNetId, bExecute:=TRUE, aAddr:= userSlaveAddr, bExecute:= TRUE, nAddrSize:= nSlaves);
+      //IF NOT fb_filter_secondaries.bBusy THEN
       eState := E_State.Read;// Next state for reading
+      fb_coe_read(bExecute := FALSE);// Prepare CoE-Access: Read an object/ sub index
       startRead := FALSE;
+      //END_IF
+
 E_State.Read:
-        
+
      CASE nReadIndex OF
        0:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nMaxCurrent);  
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nMaxCurrent);
        1:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nReducedCurrent); 
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nReducedCurrent);
        2:
-         pDstBuf := ADR(aCoeData[nSlaveIndex].nNominalVoltage);  
+         pDstBuf := ADR(aCoeData[nSlaveIndex].nNominalVoltage);
        3:
          pDstBuf := ADR(aCoeData[nSlaveIndex].nMotorFullSteps);
        4:
          pDstBuf := ADR(aCoeData[nSlaveIndex].nSpeedRange);
+       5:
+         pDstBuf := ADR(aCoeData[nSlaveIndex].sDeviceName);
      END_CASE
+    IF nReadIndex = 5 THEN
+    cbBufLen := 80;
+    ELSE
+    cbBufLen := SIZEOF(pDstBuf^);
+    END_IF
    // Read entry
    fb_coe_read(
-   sNetId:= userNetId, 
-   nSlaveAddr:= userSlaveAddr[nSlaveIndex], 
-   nSubIndex:= aCoeIndex[nReadIndex], 
+   sNetId:= userNetId,
+   nSlaveAddr:= userSlaveAddr[nSlaveIndex],
+   nSubIndex:= aCoeIndex[nReadIndex],
    nIndex:= aCoeAddr[nReadIndex],
-   pDstBuf:= pDstBuf, 
-   cbBufLen:= 2, 
-   bExecute:= TRUE, 
+   pDstBuf:= pDstBuf,
+   cbBufLen:= cbBufLen,
+   bExecute:= TRUE,
    tTimeout:= T#1S
    );
    eState := E_State.Idle; // Next state
@@ -78,21 +92,34 @@ E_State.Idle:
    ELSE
       IF NOT fb_coe_read.bBusy THEN
              eState := E_State.Init;
-             IF nReadIndex < 4 THEN
+             IF nReadIndex < nNumCoeParam - 1 THEN
                 startRead := TRUE;
                 nReadIndex := nReadIndex + 1;
-             ELSIF nReadIndex = 4 AND nSlaveIndex < 1 THEN
+             ELSIF nReadIndex = nNumCoeParam - 1 AND nSlaveIndex < nSlaves - 1 THEN
                 nReadIndex := 0;
                 nSlaveIndex := nSlaveIndex + 1;
                 startRead := TRUE;
              ELSE
-                nReadIndex := 0;
-                nSlaveIndex := 0;
+                //nReadIndex := 0;
+                //nSlaveIndex := 0;
              END_IF
          END_IF
    END_IF
 E_State.Error:
-   ;                     // Access error
+    IF fb_coe_read.nErrId = 13
+     or fb_coe_read.nErrId = 1797
+        or fb_coe_read.nErrId = 1795 THEN
+        //ERR_PORTNOTCONNECTED wasnt supported.
+        //ADSERR_DEVICE_INVALIDSIZE, not an el 70x1
+        //ADSERR_DEVICE_INVALIDOFFSET
+        IF nSlaveIndex < nSlaves - 1 THEN
+            nSlaveIndex := nSlaveIndex + 1;
+            estate := E_State.Init;
+            startRead := TRUE;
+        END_IF
+    END_IF
+
+                  // Access error
 END_CASE]]></ST>
     </Implementation>
   </POU>

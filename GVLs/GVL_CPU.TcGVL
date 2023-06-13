@@ -3,7 +3,9 @@
   <GVL Name="GVL_CPU" Id="{9b0d798d-e9c6-4dcc-9bc7-12a6e92aaaa7}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 VAR_GLOBAL
-    CONSTANT EC_MAX_SECONDARY :  BYTE := 10;
+    CONSTANT
+    EC_MAX_SECONDARY :  BYTE := 10;
+    MAX_STRING_SIZE : BYTE := 81;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

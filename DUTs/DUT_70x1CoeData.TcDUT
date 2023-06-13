@@ -35,6 +35,7 @@ STRUCT
      field: DESC Speed Range
     '}
     nSpeedRange: WORD;
+    sDeviceName : STRING(35);
 END_STRUCT
 END_TYPE
 ]]></Declaration>
